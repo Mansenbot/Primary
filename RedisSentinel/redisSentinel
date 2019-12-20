@@ -1,0 +1,48 @@
+#!bin/bash
+source /usr/local/sbin/ScriptRedis/redisSentinel.conf;
+
+MasterInspect()
+{
+     NeedProcess=`ps -ef | grep redis | grep server | awk -F" " '{print $9}' | awk -F":" '{print $2}'`	
+	for i in ${NeedProcess} ;do
+	  RedisMaster=`redis-cli -p ${i} info Replication | grep master_port | awk -F":" '{print $2}'`
+		if [ -z ${RedisMaster} ]; then
+			#拿到master主	
+			NewRedisMaster=${i}
+		else
+			NewRedisSlave=${i}
+		fi
+	done
+#echo ${NewRedisMaster}
+}
+
+MasterSwitch()
+{
+	 echo 'Master 好像蹦了' >> ${URL}
+         TotalLog=`wc -l ${URL} | awk -F" " '{print $1}'`
+               if [ ${TotalLog} -eq ${Redis_Second} ] ;then
+                            echo 'Master 真的蹦了 及时处理';
+                            Warning1="001"
+                                #简单处理 将6388 设置成master调试
+                                `redis-cli -p 6388 slaveof no one`
+                               # if [ ${a} -eq 'OK' ]; then
+                              #        M;
+                              #  fi
+                else
+                        echo "Master 异常"      
+                fi
+
+}
+while true ; do
+	#查找Master 进程端口
+	MasterInspect;
+        if [ -z ${NewRedisMaster} ] ;then
+		#切换Master   
+        	MasterSwitch;
+	else
+              echo 'Master 无异常'	
+        fi
+        	unset NewRedisMaster;
+		unset NewRedisSlave;
+		sleep 1;
+done
